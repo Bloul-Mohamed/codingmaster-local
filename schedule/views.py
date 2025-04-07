@@ -171,19 +171,35 @@ class ScheduleViewSet(viewsets.ModelViewSet):
         stadium_id = serializer.validated_data['stadium'].id
         department_id = serializer.validated_data['department'].id
 
-        # Get all schedules for the same date and stadium
-        conflicting_schedules = Schedule.objects.filter(
+        # Check for conflicts with the same stadium (existing check)
+        stadium_conflicts = Schedule.objects.filter(
             date=new_date,
             stadium_id=stadium_id,
             is_active=True
         )
 
-        # Check for time conflicts
-        for schedule in conflicting_schedules:
+        # Check for time conflicts with the stadium
+        for schedule in stadium_conflicts:
             if (new_start_time < schedule.end_time and
                     new_end_time > schedule.start_time):
                 return Response(
-                    {"error": "Time conflict with an existing schedule."},
+                    {"error": "Time conflict with an existing schedule in this stadium."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Check for conflicts with the same department
+        department_conflicts = Schedule.objects.filter(
+            date=new_date,
+            department_id=department_id,
+            is_active=True
+        )
+
+        # Check for time conflicts with the department
+        for schedule in department_conflicts:
+            if (new_start_time < schedule.end_time and
+                    new_end_time > schedule.start_time):
+                return Response(
+                    {"error": "Time conflict: this department is already scheduled elsewhere at this time."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -289,6 +305,86 @@ class ScheduleViewSet(viewsets.ModelViewSet):
             })
 
         return Response(available_slots)
+
+    @swagger_auto_schema(
+        operation_description="Update a schedule by ID with conflict validation",
+        request_body=ScheduleSerializer,
+        responses={
+            200: ScheduleSerializer(),
+            400: "Bad request - time conflict or invalid data"
+        }
+    )
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        # Check for scheduling conflicts (similar to create method)
+        new_date = serializer.validated_data.get('date', instance.date)
+        new_start_time = serializer.validated_data.get(
+            'start_time', instance.start_time)
+        new_end_time = serializer.validated_data.get(
+            'end_time', instance.end_time)
+        stadium_id = serializer.validated_data.get(
+            'stadium', instance.stadium).id
+        department_id = serializer.validated_data.get(
+            'department', instance.department).id
+
+        # Check for conflicts with the same stadium
+        stadium_conflicts = Schedule.objects.filter(
+            date=new_date,
+            stadium_id=stadium_id,
+            is_active=True
+        ).exclude(id=instance.id)  # Exclude the current instance
+
+        # Check for time conflicts with the stadium
+        for schedule in stadium_conflicts:
+            if (new_start_time < schedule.end_time and
+                    new_end_time > schedule.start_time):
+                return Response(
+                    {"error": "Time conflict with an existing schedule in this stadium."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Check for conflicts with the same department
+        department_conflicts = Schedule.objects.filter(
+            date=new_date,
+            department_id=department_id,
+            is_active=True
+        ).exclude(id=instance.id)  # Exclude the current instance
+
+        # Check for time conflicts with the department
+        for schedule in department_conflicts:
+            if (new_start_time < schedule.end_time and
+                    new_end_time > schedule.start_time):
+                return Response(
+                    {"error": "Time conflict: this department is already scheduled elsewhere at this time."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Perform the update if no conflicts
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
+
+    @swagger_auto_schema(
+        operation_description="Partially update a schedule by ID with conflict validation",
+        request_body=ScheduleSerializer,
+        responses={
+            200: ScheduleSerializer(),
+            400: "Bad request - time conflict or invalid data"
+        }
+    )
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
 
 
 class ChecksViewSet(viewsets.ModelViewSet):
