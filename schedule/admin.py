@@ -39,7 +39,7 @@ class ScheduleAdmin(admin.ModelAdmin):
     list_per_page = 10
     fieldsets = (
         (None, {
-            'fields': ('department', 'date', 'start_time', 'end_time', 'is_active')
+            'fields': ('department', 'date', 'start_time', 'end_time', 'is_active', 'stadium')
         }),
     )
 
