@@ -1,0 +1,20 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "*"
+pillow = "*"
+drf-yasg = "*"
+djangorestframework-simplejwt = "*"
+django-storages = "*"
+boto3 = "*"
+django-semantic-admin = "*"
+django-rest-swagger = "*"
+django-debug-toolbar = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"
