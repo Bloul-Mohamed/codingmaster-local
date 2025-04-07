@@ -169,7 +169,6 @@ class ScheduleViewSet(viewsets.ModelViewSet):
         new_start_time = serializer.validated_data['start_time']
         new_end_time = serializer.validated_data['end_time']
         stadium_id = serializer.validated_data['stadium'].id
-        department_id = serializer.validated_data['department'].id
 
         # Get all schedules for the same date and stadium
         conflicting_schedules = Schedule.objects.filter(
@@ -188,7 +187,25 @@ class ScheduleViewSet(viewsets.ModelViewSet):
                 )
 
         # Save the schedule if no conflicts
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers
+        )
+
+    def perform_create(self, serializer):
+        """
+        Override perform_create to create checks record after schedule creation.
+        This method is called by the default create() method.
+        """
+        # Save the schedule
         schedule = serializer.save()
+
+        # Get department and stadium IDs
+        department_id = schedule.department.id
+        stadium_id = schedule.stadium.id
 
         # Create or update checks record
         check_obj, created = checks.objects.get_or_create(
@@ -201,13 +218,6 @@ class ScheduleViewSet(viewsets.ModelViewSet):
         if not created:
             check_obj.counter += 1
             check_obj.save()
-
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data,
-            status=status.HTTP_201_CREATED,
-            headers=headers
-        )
 
     @swagger_auto_schema(
         operation_description="Get available time slots for a specific date and stadium",
