@@ -33,7 +33,7 @@ class DepartmentAdmin(admin.ModelAdmin):
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
     list_display = ('id', 'department', 'date',
-                    'start_time', 'end_time', 'is_active')
+                    'start_time', 'end_time', 'is_active', 'stadium')
     search_fields = ('department__name',)
     ordering = ('-id',)
     list_per_page = 10
