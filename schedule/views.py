@@ -152,63 +152,64 @@ class ScheduleViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-
-@swagger_auto_schema(
-    operation_description="Create a new schedule with time conflict validation",
-    request_body=ScheduleSerializer,
-    responses={
-        201: ScheduleSerializer(),
-        400: "Bad request - time conflict or invalid data"
-    }
-)
-def create(self, request, *args, **kwargs):
-    serializer = self.get_serializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-
-    # Check for scheduling conflicts
-    new_date = serializer.validated_data['date']
-    new_start_time = serializer.validated_data['start_time']
-    new_end_time = serializer.validated_data['end_time']
-    stadium_id = serializer.validated_data['stadium'].id
-    department_id = serializer.validated_data['department'].id
-
-    # Get all schedules for the same date and stadium
-    conflicting_schedules = Schedule.objects.filter(
-        date=new_date,
-        stadium_id=stadium_id,
-        is_active=True
+    @swagger_auto_schema(
+        operation_description="Create a new schedule with time conflict validation",
+        request_body=ScheduleSerializer,
+        responses={
+            201: ScheduleSerializer(),
+            400: "Bad request - time conflict or invalid data"
+        }
     )
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-    # Check for time conflicts
-    for schedule in conflicting_schedules:
-        if (new_start_time < schedule.end_time and
-                new_end_time > schedule.start_time):
-            return Response(
-                {"error": "Time conflict with an existing schedule."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Check for scheduling conflicts
+        new_date = serializer.validated_data['date']
+        new_start_time = serializer.validated_data['start_time']
+        new_end_time = serializer.validated_data['end_time']
+        stadium_id = serializer.validated_data['stadium'].id
+        department_id = serializer.validated_data['department'].id
 
-    # Save the schedule if no conflicts
-    schedule = serializer.save()
+        # Get all schedules for the same date and stadium
+        conflicting_schedules = Schedule.objects.filter(
+            date=new_date,
+            stadium_id=stadium_id,
+            is_active=True
+        )
 
-    # Create or update checks record
-    check_obj, created = checks.objects.get_or_create(
-        depertment_id=department_id,
-        stadium_id=stadium_id,
-        defaults={'counter': 0}
-    )
+        # Check for time conflicts
+        for schedule in conflicting_schedules:
+            if (new_start_time < schedule.end_time and
+                    new_end_time > schedule.start_time):
+                return Response(
+                    {"error": "Time conflict with an existing schedule."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-    # Increment counter if record already exists
-    if not created:
-        check_obj.counter += 1
-        check_obj.save()
+        # Save the schedule if no conflicts
+        schedule = serializer.save()
 
-    headers = self.get_success_headers(serializer.data)
-    return Response(
-        serializer.data,
-        status=status.HTTP_201_CREATED,
-        headers=headers
-    )    @ swagger_auto_schema(
+        # Create or update checks record
+        check_obj, created = checks.objects.get_or_create(
+            depertment_id=department_id,
+            stadium_id=stadium_id,
+            defaults={'counter': 1}  # Start with 1 for new records
+        )
+
+        # Increment counter if record already exists
+        if not created:
+            check_obj.counter += 1
+            check_obj.save()
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers
+        )
+
+    @swagger_auto_schema(
         operation_description="Get available time slots for a specific date and stadium",
         manual_parameters=[
             openapi.Parameter('date', openapi.IN_QUERY, description="Date to check (YYYY-MM-DD)",
@@ -230,7 +231,6 @@ def create(self, request, *args, **kwargs):
             400: "Bad request - missing or invalid parameters"
         }
     )
-
     @action(detail=False, methods=['get'])
     def available_slots(self, request):
         """Get available time slots for a specific date and stadium."""
