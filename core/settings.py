@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'drf_yasg',                # Yet Another Swagger generator
     # Local apps
     # .....
+    "schedule",
 ]
 
 MIDDLEWARE = [
