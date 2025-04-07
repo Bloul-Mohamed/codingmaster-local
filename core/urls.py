@@ -27,7 +27,7 @@ from django.conf import settings
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="My Project API",
+        title="Master <Coding> API",
         default_version='v1',
         description="API documentation for My Project",
     ),
@@ -37,7 +37,6 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path('', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-] + debug_toolbar_urls() 
-
-
+    path('', schema_view.with_ui('swagger', cache_timeout=0),
+         name='schema-swagger-ui'),
+] + debug_toolbar_urls()
