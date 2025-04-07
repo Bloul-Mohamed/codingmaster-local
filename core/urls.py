@@ -40,5 +40,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path('', schema_view.with_ui('swagger', cache_timeout=0),
          name='schema-swagger-ui'),
-    path('api/v1/', include('schedule.urls')),
+    path('api/schedule/', include('schedule.urls')),
+    path('api/users/', include('users.urls')),
 ] + debug_toolbar_urls()
